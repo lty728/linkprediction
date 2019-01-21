@@ -11,6 +11,17 @@
 
 using namespace std;
 
+typedef struct 
+{
+	double score;
+	bool existed;
+}nodescore;
+
+bool operator<(const nodescore &x, const nodescore &y)
+{
+	return x.score > y.score;
+}
+
 class Graph {
 private:
 	int nsize;//节点数量
@@ -23,7 +34,9 @@ private:
 	vector<vector<int> > linklist;//边集
 	vector<vector<int> > templist;
 	vector<string> files;
+	vector<nodescore> rank;
 	double AUC;
+	double precision;
 	queue<int> q; //搜索队列
 	vector<bool> visited; //访问标志
 	vector<int> level;//广度优先遍历层数
@@ -86,7 +99,7 @@ public:
 			cout << "no such file" << endl;
 			return;
 		}
-		cout << filename << " loaded" << endl;
+		//cout << filename << " loaded" << endl;
 	}
 
 	void init(double ratio) {
@@ -326,6 +339,20 @@ public:
 		return (-p1*log(p1) - p2*log(p2)) / (d - 1);
 	}
 
+	double newlp2(int n1, int n2, int l) {
+		double p1 = pn(n1, l);
+		double p2 = pn(n2, l);
+		int d = distance(n1, n2);
+		return abs((-p1 * log(p1) + p2 * log(p2))) / (d - 1);
+	}
+
+	double newlp3(int n1, int n2, int l) {
+		double p1 = pn(n1, l);
+		double p2 = pn(n2, l);
+		int d = distance(n1, n2);
+		return (-p1 * log(p2) - p2 * log(p1)) / (d - 1);
+	}
+
 
 
 	double countAUC(int num, int method) {//method:1.cn;2.pe
@@ -344,30 +371,9 @@ public:
 			{
 				n21 = v2(e);
 				n22 = v2(e);
-			} while (isNeighbor(n21, n22));
-			switch (method)
-			{
-			case 1:
-				s1 = CN(n11, n12);//测试边
-				s2 = CN(n21, n22);//不存在边
-				break;
-			case 2:
-				s1 = AA(n11, n12);
-				s2 = AA(n21, n22);
-				break;
-			case 3:
-				s1 = RA(n11, n12);
-				s2 = RA(n21, n22);
-				break;
-			case 4:
-				s1 = PE(n11, n12);
-				s2 = PE(n21, n22);
-				break;
-			case 5:
-				s1 = newlp(n11, n12, 3);
-				s2 = newlp(n21, n22, 3);
-				break;
-			}
+			} while ((n21 == n22) || isNeighbor(n21, n22));
+			s1 = sim(n11, n12, method);//测试边
+			s2 = sim(n21, n22, method);//不存在边			
 			if (s1 > s2) {
 				t++;
 			}
@@ -377,6 +383,73 @@ public:
 		}
 		AUC = t / num;
 		return AUC;
+	}
+
+	double countPrecision(int l, int num, double ratio, int method) {
+		int tn;
+		int count = 0;
+		nodescore temp;
+		int n1, n2;
+		double s;
+		int u = nsize*(nsize - 1) / 2;
+		int ex = num * ((ratio*M) / (u - (1 - ratio)*M));
+		int noex = num - ex;
+		l = l * (num / (u - (1 - ratio)*M));
+		rank.clear();
+		uniform_int_distribution<int> u1(0, test.size() - 1);
+		uniform_int_distribution<int> u2(begin, nsize - 1);
+		int i = 0;
+		for (; i < ex; i++) {
+			tn = u1(e);
+			n1 = test[tn][0];
+			n2 = test[tn][1];
+			temp.score = sim(n1, n2, method);
+			temp.existed = true;
+			rank.push_back(temp);
+		}
+		for (; i < num; i++) {
+			do {
+				n1 = u2(e);
+				n2 = u2(e);
+			} while ((n1 == n2) || isNeighbor(n1, n2));
+			temp.score = sim(n1, n2, method);
+			temp.existed = true;
+			rank.push_back(temp);
+		}
+		sort(rank.begin(), rank.end());
+		for (int i = 0; i < l; i++) {
+			if (rank[i].existed == true) {
+				count++;
+			}
+		}
+		return (double)count / l;
+	}
+
+	double sim(int n1, int n2, int method) {
+		switch (method)
+		{
+		case 1:
+			return CN(n1, n2);
+			break;
+		case 2:
+			return AA(n1, n2);
+			break;
+		case 3:
+			return RA(n1, n2);
+			break;
+		case 4:
+			return PE(n1, n2);
+			break;
+		case 5:
+			return newlp(n1, n2, 3);
+			break;
+		case 6:
+			return newlp2(n1, n2, 3);
+			break;
+		case 7:
+			return newlp3(n1, n2, 3);
+			break;
+		}
 	}
 
 	bool isNeighbor(int n1, int n2) {
@@ -399,7 +472,7 @@ public:
 	}
 
 
-	void tries(int times,const char* path) {
+	void tries(int times, int AUCtimes, double ratio, const char* path, string resultfile) {
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
@@ -408,33 +481,119 @@ public:
 		double result = 0;
 		clock_t start, end;
 		double ai;
+		vector<int> method = { 7 };
+		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
-			readdata(fs.append(files[f]));
-			for (int m = 1; m <= 5; m++) {
+			readdata(fs + files[f]);
+			out << files[f] << " ";
+			cout << files[f] << endl;
+			for (int m = 0; m < method.size(); m++) {
+				cout <<"method: "<< m << endl;
+				start = clock();
+				result = 0;
 				for (int t = 1; t <= times; t++) {
-					result = 0;
 					cout << t << ":";
-					start = clock();
-					init(0.1);
-					ai = countAUC(2000, m);
+					init(ratio);
+					ai = countAUC(AUCtimes, method[m]);
 					result += ai;
-					end = clock();
-					cout << ai << " ";
-					cout << end - start << "ms" << endl;
+					cout << ai <<endl;
 				}
 				result = result / times;
 				cout << result << endl;
+				out << result << " ";
+				end = clock();
+				cout << end - start << "ms" << endl;
 			}
+			out << endl;
 		}			
 	}
 
-	void undirect(string filename)
+	void isDirected(string filename) {
+		string fs = "F:/data/lp_data/";
+		readdata(fs + filename);
+		cout << filename << " ";
+		for (int i = 0; i < n.size(); i++) {
+			if (n[i].size() > 1) {
+				for (int j = 0; j < n[i].size() - 1; j++) {
+					for (int k = j + 1; k < n[i].size(); k++) {
+						if (n[i][j] == n[i][k]) {
+							cout << n[i][j] << " " << i << endl;
+							cout << "Directed" << endl;
+							return;
+						}
+					}
+				}
+			}
+		}
+		cout << "Undirected" << endl;
+	}
+
+	void testDirected() {
+		getAllFile("F:/data/lp_data/*.txt");
+		for (int f = 0; f < files.size(); f++) {
+			isDirected(files[f]);
+		}
+	}
+
+	void makeUndirected(string filename) {
+		ifstream in(filename);
+		string line;
+		if (in) // 有该文件  
+		{
+			int n1, n2;
+			n.clear();
+			linklist.clear();
+			nsize = 0;
+			M = 0;
+			begin = 0;
+			vector<int> l(2);
+			while (getline(in, line)) // line中不包括每行的换行符  
+			{
+				M++;
+				istringstream is(line);
+				is >> n1 >> n2;				
+				if ((n1 >= nsize) || (n2 >= nsize)) {
+					nsize = ((n1 > n2) ? n1 : n2) + 1;
+					n.resize(nsize);
+				}
+				if ((n1 != n2) && !isNeighbor(n1, n2)) {
+					l[0] = n1;
+					l[1] = n2;
+					linklist.push_back(l);
+					n[n1].push_back(n2);
+					n[n2].push_back(n1);
+				}				
+			}
+			in.close();
+			ofstream out(filename);
+			for (int i = 0; i < linklist.size(); i++) {
+				out << linklist[i][0] << " " << linklist[i][1] << endl;
+			}
+			out.close();
+		}
+		else // 没有该文件  
+		{
+			cout << "no such file" << endl;
+			return;
+		}
+		cout << filename << " loaded" << endl;
+	}
+
+	void allUndirected() {
+		string fs = "F:/data/lp_data/";
+		getAllFile("F:/data/lp_data/*.txt");
+		for (int f = 0; f < files.size(); f++) {
+			makeUndirected(fs + files[f]);
+		}
+	}
 
 };
 
 int main(int argc, char **argv) {
 	Graph g;
-	g.tries(100, "F:\\data\\lp_data\\");//1.PE;2.CN;3.AA;4.RA;5.my
+	//g.testDirected();
+	//g.allUndirected();
+	g.tries(10,1000,0.1, "F:/data/lp_data/", "F:/data/lp_data/result/result2.txt");
 	//g.init(0.1);
 	//cout << g.get_cluster();
 	//system("pause");
