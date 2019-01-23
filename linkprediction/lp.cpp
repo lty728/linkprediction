@@ -300,6 +300,7 @@ public:
 				}
 			}
 		}
+		addk -= train[node].size();
 		return (double)train[node].size() / addk;
 	}
 
@@ -333,6 +334,9 @@ public:
 	}
 	
 	double newlp(int n1, int n2, int l) {
+		if((train[n1].size()==0)||(train[n2].size()==0)){
+			return 0;
+		}
 		double p1 = pn(n1, l);
 		double p2 = pn(n2, l);
 		int d = distance(n1, n2);
@@ -351,6 +355,10 @@ public:
 		double p2 = pn(n2, l);
 		int d = distance(n1, n2);
 		return (-p1 * log(p2) - p2 * log(p1)) / (d - 1);
+	}
+
+	double sp(int n1, int n2) {
+		return (double)1 / distance(n1, n2);
 	}
 
 
@@ -449,6 +457,9 @@ public:
 		case 7:
 			return newlp3(n1, n2, 3);
 			break;
+		case 8:
+			return sp(n1, n2);
+			break;
 		}
 	}
 
@@ -472,7 +483,7 @@ public:
 	}
 
 
-	void tries(int times, int AUCtimes, double ratio, const char* path, string resultfile) {
+	void tries(int times, int AUCtimes, int isAUC, double ratio, const char* path, string resultfile) {
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
@@ -481,20 +492,28 @@ public:
 		double result = 0;
 		clock_t start, end;
 		double ai;
-		vector<int> method = { 7 };
+		vector<int> method = { 5 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f]);
 			out << files[f] << " ";
 			cout << files[f] << endl;
 			for (int m = 0; m < method.size(); m++) {
-				cout <<"method: "<< m << endl;
+				cout <<"method: "<< method[m] << endl;
 				start = clock();
 				result = 0;
 				for (int t = 1; t <= times; t++) {
 					cout << t << ":";
 					init(ratio);
-					ai = countAUC(AUCtimes, method[m]);
+					switch (isAUC)
+					{
+					case 1:
+						ai = countAUC(AUCtimes, method[m]);
+						break;
+					case 0:
+						ai = countPrecision(100, 10000, 0.1, method[m]);
+					}
+
 					result += ai;
 					cout << ai <<endl;
 				}
@@ -593,7 +612,8 @@ int main(int argc, char **argv) {
 	Graph g;
 	//g.testDirected();
 	//g.allUndirected();
-	g.tries(10,1000,0.1, "F:/data/lp_data/", "F:/data/lp_data/result/result2.txt");
+	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/result4.txt");
+	//g.tries(100, 1000, 0, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/precision.txt");
 	//g.init(0.1);
 	//cout << g.get_cluster();
 	//system("pause");
