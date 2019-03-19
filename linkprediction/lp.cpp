@@ -28,11 +28,13 @@ private:
 	int M;//边数
 	int testnum;//测试边数
 	int begin;
+	int dmax;//最大的度
 	vector<vector<int> > n; //二维向量存储每个节点的邻接节点
 	vector<vector<int> > train;//训练集
 	vector<vector<int> > test;//测试集
 	vector<vector<int> > linklist;//边集
 	vector<vector<int> > templist;
+	vector<vector<double> > pset;
 	vector<string> files;
 	vector<nodescore> rank;
 	double AUC;
@@ -113,6 +115,42 @@ public:
 		dividedata();
 	}
 
+	void countPset() {
+		int totd;
+		int dk;
+		dmax = 0;
+		int j;
+		for (int i = 0; i < train.size(); i++) {
+			dmax = (dmax > train[i].size()) ? dmax : train[i].size();
+		}
+		vector<double> pi(dmax + 1, 0);
+		pset.clear();
+		pset.resize(train.size(), pi);
+		for (int i = 0; i < train.size(); i++) {
+			totd = train[i].size();
+			pset[i][0] = train[i].size();
+			for (j = 0; j < train[i].size(); j++) {
+				dk = train[train[i][j]].size();
+				totd += dk;
+				pset[i][j + 1] = dk;
+			}
+			for (int k = 0; k <= j; k++) {
+				pset[i][k] /= totd;
+			}
+			sort(pset[i].begin(), pset[i].end(), greater<double>());
+		}
+		//cout << LRE(15, 10) << endl;
+	}
+
+	double LRE(int n1, int n2) {
+		double l = 0;
+		int m = ((train[n1].size() < train[n2].size()) ? train[n1].size() : train[n2].size()) + 1;
+		for (int i = 0; i < m; i++) {
+			l += pset[n1][i] * log(pset[n1][i] / pset[n2][i]) + pset[n2][i] * log(pset[n2][i] / pset[n1][i]);
+		}
+		return -l;
+	}
+
 
 	bool connected(int n1, int n2) {//用于验证删掉一条边后网络是否连通
 		visited.clear();
@@ -164,6 +202,10 @@ public:
 	}
 
 	void dividedata() {
+		vector<int> dis;
+		dis.clear();
+		dis.resize(10, 0);
+		int d;
 		int n1, n2;
 		for (int i = 0; i < testnum;) {
 			uniform_int_distribution<int> u1(0, templist.size() - 1);
@@ -184,9 +226,16 @@ public:
 						train[n2].erase(train[n2].begin() + k);
 					}
 				}
+				/*d = distance(n1, n2);
+				if (d<10) {
+					dis[d]++;
+				}*/
 				i++;
 			}
 		}
+		/*for (int i = 2; i < 10; i++) {
+			cout << i << ":" << dis[i] << endl;
+		}*/
 	}
 
 	int CN(int n1, int n2) {
@@ -347,7 +396,7 @@ public:
 		double p1 = pn(n1, l);
 		double p2 = pn(n2, l);
 		int d = distance(n1, n2);
-		return abs((-p1 * log(p1) + p2 * log(p2))) / (d - 1);
+		return (-p1 * log(p1) - p2 * log(p2)) * (d - 1);
 	}
 
 	double newlp3(int n1, int n2, int l) {
@@ -356,6 +405,15 @@ public:
 		int d = distance(n1, n2);
 		return (-p1 * log(p2) - p2 * log(p1)) / (d - 1);
 	}
+
+	double newlp4(int n1, int n2, int l,double beta) {
+		double p1 = pn(n1, l);
+		double p2 = pn(n2, l);
+		int d = distance(n1, n2);
+		return (-p1 * log(p2) - p2 * log(p1)) * pow(beta, d);
+	}
+
+	
 
 	double sp(int n1, int n2) {
 		return (double)1 / distance(n1, n2);
@@ -449,16 +507,19 @@ public:
 			return PE(n1, n2);
 			break;
 		case 5:
-			return newlp(n1, n2, 3);
+			return newlp(n1, n2, 1);
 			break;
 		case 6:
-			return newlp2(n1, n2, 3);
+			return newlp2(n1, n2, 1);
 			break;
 		case 7:
 			return newlp3(n1, n2, 3);
 			break;
 		case 8:
 			return sp(n1, n2);
+			break;
+		case 9:
+			return LRE(n1, n2);
 			break;
 		}
 	}
@@ -492,7 +553,7 @@ public:
 		double result = 0;
 		clock_t start, end;
 		double ai;
-		vector<int> method = { 5 };
+		vector<int> method = { 9 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f]);
@@ -503,8 +564,11 @@ public:
 				start = clock();
 				result = 0;
 				for (int t = 1; t <= times; t++) {
-					cout << t << ":";
+					cout << t << ":" << endl;
 					init(ratio);
+					if (method[m] == 9) {
+						countPset();
+					}
 					switch (isAUC)
 					{
 					case 1:
@@ -612,7 +676,7 @@ int main(int argc, char **argv) {
 	Graph g;
 	//g.testDirected();
 	//g.allUndirected();
-	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/result4.txt");
+	g.tries(10, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result6.txt");
 	//g.tries(100, 1000, 0, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/precision.txt");
 	//g.init(0.1);
 	//cout << g.get_cluster();
