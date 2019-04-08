@@ -30,8 +30,10 @@ private:
 	int begin;
 	int dmax;//最大的度
 	vector<vector<int> > n; //二维向量存储每个节点的邻接节点
+	vector<vector<int> > tempn;
 	vector<vector<int> > train;//训练集
 	vector<vector<int> > test;//测试集
+	vector<vector<int> > nolink;//不存在边集
 	vector<vector<int> > linklist;//边集
 	vector<vector<int> > templist;
 	vector<vector<double> > pset;
@@ -145,9 +147,11 @@ public:
 	double LRE(int n1, int n2) {
 		double l = 0;
 		int m = ((train[n1].size() < train[n2].size()) ? train[n1].size() : train[n2].size()) + 1;
+		int d = distance(n1, n2);
 		for (int i = 0; i < m; i++) {
-			l += pset[n1][i] * log(pset[n1][i] / pset[n2][i]) + pset[n2][i] * log(pset[n2][i] / pset[n1][i]);
+			l += pset[n1][i] * log(pset[n1][i] / pset[n2][i]) + pset[n2][i] * log(pset[n2][i] / pset[n1][i]);//relative entropy 
 		}
+		l = l / d;
 		return -l;
 	}
 
@@ -202,9 +206,6 @@ public:
 	}
 
 	void dividedata() {
-		vector<int> dis;
-		dis.clear();
-		dis.resize(10, 0);
 		int d;
 		int n1, n2;
 		for (int i = 0; i < testnum;) {
@@ -226,16 +227,40 @@ public:
 						train[n2].erase(train[n2].begin() + k);
 					}
 				}
-				/*d = distance(n1, n2);
-				if (d<10) {
-					dis[d]++;
-				}*/
 				i++;
 			}
 		}
-		/*for (int i = 2; i < 10; i++) {
-			cout << i << ":" << dis[i] << endl;
-		}*/
+	}
+
+	void outLinkInfo(string filename) {
+		ofstream out(filename);
+		int n1, n2;
+		int d;
+		int c;
+		double l1;
+		double l2;
+		for (int i = 0; i < test.size(); i++) {
+			n1 = test[i][0];
+			n2 = test[i][1];
+			d = distance(n1, n2);
+			c = CN(n1, n2);
+			l1 = le(n1);
+			l2 = le(n2);
+			out << n1 << "\t" << n2 << "\t" << d << "\t" << c << "\t" << l1 << "\t" << l2 << endl;
+		}
+	}
+
+	void allLinkInfo(double ratio, const char* path, string outpath) {
+		char path2[30];
+		strcpy(path2, path);
+		strcat(path2, "*.txt");
+		getAllFile(path2);
+		string fs = path;
+		for (int f = 0; f < files.size(); f++) {
+			readdata(fs + files[f]);
+			init(ratio);
+			outLinkInfo(outpath + files[f]);
+		}
 	}
 
 	int CN(int n1, int n2) {
@@ -314,10 +339,6 @@ public:
 		return ra;
 	}
 
-	double LNBC(int n1, int n2) {
-
-	}
-
 	void clear(queue<int>& q) {
 		queue<int> empty;
 		swap(empty, q);
@@ -392,6 +413,16 @@ public:
 		return (-p1*log(p1) - p2*log(p2)) / (d - 1);
 	}
 
+	double newcn(int n1, int n2) {
+		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
+			return 0;
+		}
+		double p1 = pn(n1, 1);
+		double p2 = pn(n2, 1);
+		int d = distance(n1, n2);
+		return ((-p1 * log(p1) - p2 * log(p2)) / (d - 1)) + CN(n1, n2);
+	}
+
 	double newlp2(int n1, int n2, int l) {
 		double p1 = pn(n1, l);
 		double p2 = pn(n2, l);
@@ -406,19 +437,37 @@ public:
 		return (-p1 * log(p2) - p2 * log(p1)) / (d - 1);
 	}
 
-	double newlp4(int n1, int n2, int l,double beta) {
-		double p1 = pn(n1, l);
-		double p2 = pn(n2, l);
+	double lp5(int n1, int n2) {
+		double l1 = le(n1);
+		double l2 = le(n2);
 		int d = distance(n1, n2);
-		return (-p1 * log(p2) - p2 * log(p1)) * pow(beta, d);
+		return (l1 + l2) / (d - 1);
 	}
-
 	
+	double le(int node) {
+		double pi;
+		double l = 0;
+		int totd = 0;
+		for (int i = 0; i < train[node].size(); i++) {
+			totd += train[train[node][i]].size();
+		}
+		for (int j = 0; j < train[node].size(); j++) {
+			pi = (double)train[train[node][j]].size() / totd;
+			l += pi * log2(pi);
+		}
+		if (l == 0) {
+			system("pause");
+		}
+		return -l;
+	}
 
 	double sp(int n1, int n2) {
 		return (double)1 / distance(n1, n2);
 	}
 
+	double LRW(int n1, int n2) {
+
+	}
 
 
 	double countAUC(int num, int method) {//method:1.cn;2.pe
@@ -437,7 +486,37 @@ public:
 			{
 				n21 = v2(e);
 				n22 = v2(e);
-			} while ((n21 == n22) || isNeighbor(n21, n22));
+			} while ((n21 == n22) || isNeighbor(n21, n22) || (train[n21].size() == 0) || (train[n22].size() == 0));
+			s1 = sim(n11, n12, method);//测试边
+			s2 = sim(n21, n22, method);//不存在边			
+ 			if (s1 > s2) {
+				t++;
+			}
+			else if (s1 == s2) {
+				t += 0.5;
+			}
+		}
+		AUC = t / num;
+		return AUC;
+	}
+
+	double AUC2(int num, int method) {
+		int n11, n12;//测试边节点
+		int n21, n22;//不存在边节点
+		int tn, nn;
+		setnolink(test.size());
+		uniform_int_distribution<int> v1(0, test.size() - 1);
+		uniform_int_distribution<int> v2(0, nolink.size() - 1);
+		double s1, s2;
+		double t = 0;//测试边相似度比不存在边大
+		for (int i = 0; i < num; i++) {
+			//随机选择测试边和不存在边各一条，分别计算相似度比较
+			tn = v1(e);
+			nn = v2(e);
+			n11 = test[tn][0];
+			n12 = test[tn][1];
+			n21 = nolink[nn][0];
+			n22 = nolink[nn][1];
 			s1 = sim(n11, n12, method);//测试边
 			s2 = sim(n21, n22, method);//不存在边			
 			if (s1 > s2) {
@@ -449,6 +528,26 @@ public:
 		}
 		AUC = t / num;
 		return AUC;
+	}
+
+	void setnolink(int size) {
+		int n1, n2;
+		nolink.clear();
+		nolink.resize(size);
+		tempn.clear();
+		tempn.assign(n.begin(), n.end());
+		uniform_int_distribution<int> v(begin, nsize - 1);
+		for (int i = 0; i < size; i++) {
+			do
+			{
+				n1 = v(e);
+				n2 = v(e);
+			} while ((train[n1].size() == 0) || (train[n2].size() == 0) || (n1 == n2) || isNeighbor2(n1, n2));
+			tempn[n1].push_back(n2);
+			tempn[n2].push_back(n1);
+			nolink[i].push_back(n1);
+			nolink[i].push_back(n2);
+		}
 	}
 
 	double countPrecision(int l, int num, double ratio, int method) {
@@ -507,13 +606,13 @@ public:
 			return PE(n1, n2);
 			break;
 		case 5:
-			return newlp(n1, n2, 1);
+			return newcn(n1, n2);
 			break;
 		case 6:
 			return newlp2(n1, n2, 1);
 			break;
 		case 7:
-			return newlp3(n1, n2, 3);
+			return lp5(n1, n2);
 			break;
 		case 8:
 			return sp(n1, n2);
@@ -527,6 +626,15 @@ public:
 	bool isNeighbor(int n1, int n2) {
 		for (int i = 0; i < n[n1].size(); i++) {
 			if (n[n1][i] == n2) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool isNeighbor2(int n1, int n2) {
+		for (int i = 0; i < tempn[n1].size(); i++) {
+			if (tempn[n1][i] == n2) {
 				return true;
 			}
 		}
@@ -553,7 +661,7 @@ public:
 		double result = 0;
 		clock_t start, end;
 		double ai;
-		vector<int> method = { 9 };
+		vector<int> method = { 1,2,3,4 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f]);
@@ -674,9 +782,10 @@ public:
 
 int main(int argc, char **argv) {
 	Graph g;
+	//g.allLinkInfo(0.1, "F:/data/lp_data/test/", "F:/data/lp_data/info/");
 	//g.testDirected();
 	//g.allUndirected();
-	g.tries(10, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result6.txt");
+	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result9.txt");
 	//g.tries(100, 1000, 0, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/precision.txt");
 	//g.init(0.1);
 	//cout << g.get_cluster();
