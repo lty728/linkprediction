@@ -232,6 +232,12 @@ public:
 		}
 	}
 
+	void showTestInfo() {
+		for (int i = 0; i < test.size(); i++) {
+
+		}
+	}
+
 	void outLinkInfo(string filename) {
 		ofstream out(filename);
 		int n1, n2;
@@ -661,7 +667,7 @@ public:
 		double result = 0;
 		clock_t start, end;
 		double ai;
-		vector<int> method = { 1,2,3,4 };
+		vector<int> method = { 9 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f]);
@@ -680,7 +686,7 @@ public:
 					switch (isAUC)
 					{
 					case 1:
-						ai = countAUC(AUCtimes, method[m]);
+						ai = AUC2(AUCtimes, method[m]);
 						break;
 					case 0:
 						ai = countPrecision(100, 10000, 0.1, method[m]);
@@ -785,9 +791,9 @@ int main(int argc, char **argv) {
 	//g.allLinkInfo(0.1, "F:/data/lp_data/test/", "F:/data/lp_data/info/");
 	//g.testDirected();
 	//g.allUndirected();
-	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result9.txt");
+	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result_LRE.txt");
 	//g.tries(100, 1000, 0, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/precision.txt");
-	//g.init(0.1);
+	//g.init(0.1);8
 	//cout << g.get_cluster();
 	//system("pause");
 }
