@@ -232,10 +232,38 @@ public:
 		}
 	}
 
-	void showTestInfo() {
-		for (int i = 0; i < test.size(); i++) {
-
+	void showInfo(const char* path, string result) {
+		char path2[30];
+		strcpy(path2, path);
+		strcat(path2, "*.txt");
+		getAllFile(path2);
+		string fs = path;
+		int n11, n12, n21, n22;
+		double cn1, cn2, d1, d2;
+		double p11, p12, p21, p22;
+		for (int f = 0; f < files.size(); f++) {
+			readdata(fs + files[f]);
+			init(0.1);
+			setnolink(test.size());
+			ofstream out(result+files[f]);
+			for (int i = 0; i < test.size(); i++) {
+				n11 = test[i][0];
+				n12 = test[i][1];
+				n21 = nolink[i][0];
+				n22 = nolink[i][1];
+				cn1 = CN(n11, n12);
+				cn2 = CN(n21, n22);
+				d1 = distance(n11, n12);
+				d2 = distance(n21, n22);
+				p11 = pn(n11, 1);
+				p12 = pn(n12, 1);
+				p21 = pn(n21, 1);
+				p22 = pn(n22, 1);
+				out << n11 << " " << n12 << " " << n21 << " " << n22 << " " << cn1 << " " << cn2 << " " << d1 << " " << d2 << " " << p11 << " " << p12 << " " << p21 << " " << p22 << " " << endl;
+			}
+			out.close();
 		}
+		
 	}
 
 	void outLinkInfo(string filename) {
@@ -407,6 +435,7 @@ public:
 				}
 			}
 		}
+		return 100;
 	}
 	
 	double newlp(int n1, int n2, int l) {
@@ -791,7 +820,8 @@ int main(int argc, char **argv) {
 	//g.allLinkInfo(0.1, "F:/data/lp_data/test/", "F:/data/lp_data/info/");
 	//g.testDirected();
 	//g.allUndirected();
-	g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result_LRE.txt");
+	//g.tries(100, 1000, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/result_LRE.txt");
+	g.showInfo("F:/data/lp_data/test/", "F:/data/lp_data/result/info/");
 	//g.tries(100, 1000, 0, 0.1, "F:/data/lp_data/", "F:/data/lp_data/result/precision.txt");
 	//g.init(0.1);8
 	//cout << g.get_cluster();
