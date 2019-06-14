@@ -526,6 +526,8 @@ public:
 		level.clear();
 		level.resize(nsize, 0);
 		visited[n1] = true;
+		clock_t start, end;
+		start = clock();
 		while (!q.empty())
 		{
 			int v = q.front(); //取出队头的节点
@@ -857,14 +859,15 @@ public:
 
 	float Precision(int method, int L, float alpha) {
 		int lm = 0;
-		L = L < testnum ? L : testnum;
-		setnolink(testnum);
+		//L = L < testnum ? L : testnum;
+		setalllink();
 		rank.clear();
 		rank.insert(rank.end(), test.begin(), test.end());
 		rank.insert(rank.end(), nolink.begin(), nolink.end());
 		for (int i = 0; i < rank.size(); i++) {
 			rank[i].score = sim(rank[i].source, rank[i].dest, method, alpha);
 		}
+
 		sort(rank.begin(), rank.end(), scoreGreater);
 		for (int i = 0; i < L; i++) {
 			if (rank[i].isTest) {
@@ -877,6 +880,9 @@ public:
 	float sim(int n1, int n2, int method, float alpha) {
 		switch (method)
 		{
+		case 0:
+			return hy(n1, n2, alpha);
+			break;
 		case 1:
 			return CN(n1, n2);
 			break;
@@ -914,9 +920,6 @@ public:
 			return WWRA(n1, n2, alpha);
 			break;
 		case 13:
-			return WWAA(n1, n2, alpha);
-			break;
-		case 14:
 			return wwlp(n1, n2, 1, alpha);
 			break;
 		}
@@ -1007,17 +1010,16 @@ public:
 		string fs = path;
 		float result = 0;
 		float ai;
-		vector<int> method = { 11 };
+		vector<int> method = { 10,11,12,13 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
 			readdata(fs + files[f], true, false);
-			out << files[f] << " ";
+			out << files[f] << endl;
 			cout << files[f] << endl;
 			for (int m = 0; m < method.size(); m++) {//遍历每种算法
 				cout << "method: " << method[m] << endl;
-				a = -5;
-				while (a < 5) {//遍历alpha的取值
-					a += 0.2;
+				a = -1;
+				while (a < 1.1) {//遍历alpha的取值
 					result = 0;
 					for (int t = 1; t <= times; t++) {
 						init(ratio);
@@ -1031,10 +1033,53 @@ public:
 						}
 						result += ai;
 					}
+					cout << a << endl;
 					result = result / times;
 					cout << result << endl;
 					out << result << " ";
+					a += 0.1;
 				}
+				out << endl;
+			}
+			out << endl;
+		}
+		out.close();
+	}
+
+	void triesbeta(int times, int isAUC, float ratio, const char* path, string resultfile) {
+		float b;
+		char path2[30];
+		strcpy(path2, path);
+		strcat(path2, "*.txt");
+		getAllFile(path2);
+		string fs = path;
+		float result = 0;
+		float ai;
+		ofstream out(resultfile);
+		for (int f = 0; f < files.size(); f++) {//遍历每个网络
+			readdata(fs + files[f], true, false);
+			out << files[f] << endl;
+			cout << files[f] << endl;
+			b = 0;
+			while (b < 1.1) {//遍历alpha的取值
+				result = 0;
+				for (int t = 1; t <= times; t++) {
+					init(ratio);
+					switch (isAUC)
+					{
+					case 1:
+						ai = countAUC(1000, 0, b);
+						break;
+					case 0:
+						ai = Precision(0, 100, b);
+					}
+					result += ai;
+				}
+				cout << b << endl;
+				result = result / times;
+				cout << result << endl;
+				out << result << " ";
+				b += 0.1;
 			}
 			out << endl;
 		}
@@ -1126,6 +1171,6 @@ public:
 
 int main(int argc, char **argv) {
 	Network g;
-	g.triesalpha(10, 0, 0.1, "F:/data/lp_data/weighted/", "F:/data/lp_data/result/result_alpha.txt");
+	g.triesbeta(10, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/hy_PE_AUC.txt");
 	system("pause");
 }
