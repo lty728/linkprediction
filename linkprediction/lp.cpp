@@ -34,6 +34,8 @@ private:
 	int testnum;//测试边数
 	int begin;//开始节点
 	int dmax;//最大的度
+	float wmin;//最小权重
+	float wmax;//最大权重
 	int totd;
 	vector<vector<link> > n;//邻接表
 	vector<link> linklist;//边集
@@ -47,6 +49,7 @@ private:
 	vector<vector<float> > pset;
 	vector<int> d;//
 	vector<string> files;
+	vector<vector<int> > eij;
 	float AUC;
 	queue<int> q; //搜索队列
 	vector<bool> visited; //访问标志
@@ -85,12 +88,17 @@ public:
 			nsize = 0;
 			M = 0;
 			begin = 0;
+			wmin = 100;
+			wmax = 0;
+			dmax = 0;
 			while (getline(in, line)) // line中不包括每行的换行符  
 			{
 				M++;
 				istringstream is(line);
 				if (isWeighted) {
 					is >> n1 >> n2 >> w;
+					wmin = w < wmin ? w : wmin;
+					wmax = w > wmax ? w : wmax;
 				}
 				else {
 					is >> n1 >> n2;
@@ -116,6 +124,7 @@ public:
 			}
 			for (int i = 0; i < n.size(); i++) {
 				sort(n[i].begin(), n[i].end(), destLess);
+				dmax = (dmax > n[i].size()) ? dmax : n[i].size();
 			}
 			e.seed(time(0));
 		}
@@ -123,6 +132,39 @@ public:
 		{
 			cout << "no such file" << endl;
 			return;
+		}
+	}
+
+	float countAssortative() {
+		int d1, d2, dmin;
+		float addai = 0, addei = 0;
+		eij.clear();
+		vector<int> ai(dmax + 1, 0);
+		eij.resize(dmax + 1, ai);
+		for (int i = 0; i < linklist.size(); i++) {
+			d1 = n[linklist[i].source].size();
+			d2 = n[linklist[i].dest].size();
+			eij[d1][d2]++;
+			eij[d2][d1]++;
+		}
+		for (int i = 0; i < eij.size(); i++) {
+			addei += eij[i][i];
+			for (int j = 0; j < eij[i].size(); j++) {
+				ai[i] += eij[i][j];
+			}
+			addai += pow(ai[i], 2);
+		}
+		addei /= M;
+		addai /= pow(M, 2);
+		return (addei - addai) / (1 - addai);
+	}
+
+	void weightNormalize() {
+		float dw = wmax - wmin;
+		for (int i = 0; i < n.size(); i++) {
+			for (int j = 0; j < n[i].size(); j++) {
+				n[i][j].weight = (n[i][j].weight - wmin) / dw;
+			}
 		}
 	}
 
@@ -579,6 +621,32 @@ public:
 		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
 	}
 
+	float wwlp2(int n1, int n2, int l, float alpha) {
+		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
+			return 0;
+		}
+		float wwp11 = wwpn(n1, l, alpha);
+		float wwp21 = wwpn(n2, l, alpha);
+		float wwp12 = pn(n1, l);
+		float wwp22 = pn(n2, l);
+		float wwp1 = wwp11 + wwp12;
+		float wwp2 = wwp21 + wwp22;
+		int d = distance(n1, n2);
+		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
+	}
+
+	float wwlp3(int n1, int n2, int l, float alpha) {
+		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
+			return 0;
+		}
+		float wwp1 = wwpn(n1, l, alpha);
+		float wwp2 = wwpn(n2, l, alpha);
+		float add = wwp1 + wwp2;
+		wwp1 = wwp1 / add;
+		wwp2 = wwp2 / add;
+		int d = distance(n1, n2);
+		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
+	}
 
 	float hy(int n1, int n2, float a) {
 		return a * newlp(n1, n2, 3) + (1 - a)*PE(n1, n2);
@@ -922,12 +990,23 @@ public:
 		case 13:
 			return wwlp(n1, n2, 1, alpha);
 			break;
+		case 14:
+			return wwlp2(n1, n2, 1, alpha);
+			break;
+		case 15:
+			return wwlp3(n1, n2, 1, alpha);
+			break;
 		}
 	}
 
 	bool isNeighbor(int n1, int n2) {
 		for (int i = 0; i < n[n1].size(); i++) {
 			if (n[n1][i].dest == n2) {
+				return true;
+			}
+		}
+		for (int j = 0; j < n[n2].size(); j++) {
+			if (n[n2][j].dest == n1) {
 				return true;
 			}
 		}
@@ -1010,7 +1089,7 @@ public:
 		string fs = path;
 		float result = 0;
 		float ai;
-		vector<int> method = { 10,11,12,13 };
+		vector<int> method = { 15 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
 			readdata(fs + files[f], true, false);
@@ -1112,12 +1191,13 @@ public:
 		}
 	}
 
-	void makeUndirected(string filename) {
-		ifstream in(filename);
+	void makeUndirected(string infile, string outfile) {
+		ifstream in(infile);
 		string line;
 		if (in) // 有该文件  
 		{
 			int n1, n2, temp;
+			float w;
 			n.clear();
 			linklist.clear();
 			nsize = 0;
@@ -1128,26 +1208,47 @@ public:
 			{
 				M++;
 				istringstream is(line);
-				is >> n1 >> n2;				
+				is >> n1 >> n2 >> w;
 				if ((n1 >= nsize) || (n2 >= nsize)) {
 					nsize = ((n1 > n2) ? n1 : n2) + 1;
 					n.resize(nsize);
 				}
-				if ((n1 != n2) && !isNeighbor(n1, n2)) {
-					l.source = n1;
-					l.dest = n2;
-					linklist.push_back(l);
-					n[n1].push_back(l);
-					temp = l.source;
-					l.source = l.dest;
-					l.dest = temp;
-					n[n2].push_back(l);
+				if (n1 != n2) {
+					if (isNeighbor(n1, n2)) {//边已存在
+						for (int i = 0; i < n[n1].size(); i++) {
+							if (n[n1][i].dest == n2) {
+								n[n1][i].weight += w;
+							}
+						}
+						for (int j = 0; j < n[n2].size(); j++) {
+							if (n[n2][j].dest == n1) {
+								n[n2][j].weight += w;
+							}
+						}
+					}
+					else {//边不存在
+						l.source = n1;
+						l.dest = n2;
+						l.weight = w;
+						n[n1].push_back(l);
+						temp = l.source;
+						l.source = l.dest;
+						l.dest = temp;
+						n[n2].push_back(l);
+					}
 				}				
 			}
+			for (int i = 0; i < n.size(); i++) {
+				sort(n[i].begin(), n[i].end(), destLess);
+			}
 			in.close();
-			ofstream out(filename);
-			for (int i = 0; i < linklist.size(); i++) {
-				out << linklist[i].source << " " << linklist[i].dest << endl;
+			ofstream out(outfile);
+			for (int i = 0; i < n.size(); i++) {
+				for (int j = 0; j < n[i].size(); j++) {
+					if (n[i][j].dest > i) {
+						out << i << " " << n[i][j].dest << " " << n[i][j].weight << endl;
+					}
+				}
 			}
 			out.close();
 		}
@@ -1156,21 +1257,33 @@ public:
 			cout << "no such file" << endl;
 			return;
 		}
-		cout << filename << " loaded" << endl;
+		cout << outfile << " loaded" << endl;
 	}
 
-	void allUndirected() {
+	double countH() {
+		float kave = 0, k2ave = 0;
+		for (int i = 0; i < n.size(); i++) {
+			kave += n[i].size();
+			k2ave += pow(n[i].size(), 2);
+		}
+		return k2ave / nsize / pow(kave / nsize, 2);
+	}
+
+	/*void allUndirected() {
 		string fs = "F:/data/lp_data/";
 		getAllFile("F:/data/lp_data/*.txt");
 		for (int f = 0; f < files.size(); f++) {
 			makeUndirected(fs + files[f]);
 		}
-	}
+	}*/
 
 };
 
 int main(int argc, char **argv) {
 	Network g;
-	g.triesbeta(10, 1, 0.1, "F:/data/lp_data/test/", "F:/data/lp_data/result/hy_PE_AUC.txt");
+	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/", "F:/data/lp_data/result/619_AUC.txt");
+	g.makeUndirected("F:/data/lp_data/weighted/beach.txt", "F:/data/lp_data/weighted/beach_U.txt");
+	//g.readdata("F:/data/lp_data/weighted/U/USAir_U.txt", true, false);
+	//cout << g.countH() << endl;
 	system("pause");
 }
