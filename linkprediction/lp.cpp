@@ -1165,6 +1165,20 @@ public:
 		out.close();
 	}
 
+	void showInfo(string infile, string outfile) {
+		int n11, n12, n21, n22;
+		readdata(infile, true, false);
+		init(0.1);
+		ofstream out(outfile);
+		for (int i = 0; i < test.size(); i++) {
+			n11 = test[i].source;
+			n12 = test[i].dest;
+			n21 = nolink[i].source;
+			n22 = nolink[i].dest;
+			out << n11 << " " << n12 << " " << n21 << " " << n22 << " " << wpn(n11, 1) << " " << wpn(n12, 1) << " " << wpn(n21, 1) << " " << wpn(n22, 1) << " " << WCN(n11, n12) << " " << WCN(n21, n22) << endl;
+		}
+	}
+
 	void isDirected(string filename) {
 		readdata(filename, true, false);
 		cout << filename << " ";
@@ -1282,8 +1296,9 @@ public:
 int main(int argc, char **argv) {
 	Network g;
 	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/", "F:/data/lp_data/result/619_AUC.txt");
-	g.makeUndirected("F:/data/lp_data/weighted/beach.txt", "F:/data/lp_data/weighted/beach_U.txt");
-	//g.readdata("F:/data/lp_data/weighted/U/USAir_U.txt", true, false);
-	//cout << g.countH() << endl;
+	//g.makeUndirected("F:/data/lp_data/weighted/beach.txt", "F:/data/lp_data/weighted/beach_U.txt");
+	g.readdata("F:/data/lp_data/Power.txt", false, false);
+	//g.showInfo("F:/data/lp_data/weighted/U/USAir_U.txt", "F:/data/lp_data/result/USAir_info.txt");
+	cout << g.countAssortative() << endl;
 	system("pause");
 }
