@@ -49,7 +49,7 @@ private:
 	vector<vector<float> > pset;
 	vector<int> d;//
 	vector<string> files;
-	vector<vector<int> > eij;
+	vector<vector<float> > eij;
 	float AUC;
 	queue<int> q; //搜索队列
 	vector<bool> visited; //访问标志
@@ -139,17 +139,22 @@ public:
 		int d1, d2, dmin;
 		float addai = 0, addei = 0;
 		eij.clear();
-		vector<int> ai(dmax + 1, 0);
+		vector<float> ai(dmax + 1, 0);
 		eij.resize(dmax + 1, ai);
 		for (int i = 0; i < linklist.size(); i++) {
 			d1 = n[linklist[i].source].size();
 			d2 = n[linklist[i].dest].size();
-			eij[d1][d2]++;
-			eij[d2][d1]++;
+			if (d1 != d2) {
+				eij[d1][d2] += 0.5;
+				eij[d2][d1] += 0.5;
+			}
+			else {
+				eij[d1][d2]++;
+			}		
 		}
-		for (int i = 0; i < eij.size(); i++) {
+		for (int i = 1; i < eij.size(); i++) {
 			addei += eij[i][i];
-			for (int j = 0; j < eij[i].size(); j++) {
+			for (int j = 1; j < eij[i].size(); j++) {
 				ai[i] += eij[i][j];
 			}
 			addai += pow(ai[i], 2);
@@ -1297,7 +1302,7 @@ int main(int argc, char **argv) {
 	Network g;
 	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/", "F:/data/lp_data/result/619_AUC.txt");
 	//g.makeUndirected("F:/data/lp_data/weighted/beach.txt", "F:/data/lp_data/weighted/beach_U.txt");
-	g.readdata("F:/data/lp_data/Power.txt", false, false);
+	g.readdata("F:/data/lp_data/football.txt", false, false);
 	//g.showInfo("F:/data/lp_data/weighted/U/USAir_U.txt", "F:/data/lp_data/result/USAir_info.txt");
 	cout << g.countAssortative() << endl;
 	system("pause");
