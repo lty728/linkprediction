@@ -38,6 +38,7 @@ private:
 	float wmax;//最大权重
 	int totd;
 	vector<vector<link> > n;//邻接表
+	vector<int> nlist;
 	vector<link> linklist;//边集
 	vector<link> templist;
 	vector<vector<link> > tempn;
@@ -228,6 +229,8 @@ public:
 		visited.resize(nsize, false);
 		visited[n1] = true;
 		queue<int> q;
+		int v;
+		int t = 0;
 		for (int i = 0; i < train[n1].size(); i++) {
 			if (train[n1][i].dest != n2) {
 				q.push(train[n1][i].dest);
@@ -235,7 +238,8 @@ public:
 			}
 		}
 		while (!q.empty()) {
-			int v = q.front();
+			t++;
+			v = q.front();
 			q.pop();
 			for (int i = 0; i < train[v].size(); i++) {
 				int now = train[v][i].dest;
@@ -246,6 +250,9 @@ public:
 					q.push(now);
 					visited[now] = true;
 				}
+			}
+			if (t > 200) {//限制搜索次数，加快速度
+				return false;
 			}
 		}
 		return false;
@@ -817,6 +824,19 @@ public:
 		return wwra;
 	}
 
+	float HEI(int n1, int n2, float alpha) {
+		return pow(abs(int(train[n1].size() - train[n2].size())), alpha);
+	}
+
+	float HOI(int n1, int n2, float alpha) {
+		return float(1) / pow(abs(int(train[n1].size() - train[n2].size())), alpha);
+	}
+
+	float HAI(int n1, int n2, float alpha) {
+		float dk = abs(int(train[n1].size() - train[n2].size()));
+		return alpha * dk + (1 - alpha)*dk;
+	}
+
 	float countAUC(int num, int method, float alpha) {//method:1.cn;2.pe
 		int n11, n12;//测试边节点
 		int n21, n22;//不存在边节点
@@ -1094,7 +1114,7 @@ public:
 		string fs = path;
 		float result = 0;
 		float ai;
-		vector<int> method = { 15 };
+		vector<int> method = { 10 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
 			readdata(fs + files[f], true, false);
@@ -1210,13 +1230,13 @@ public:
 		}
 	}
 
-	void makeUndirected(string infile, string outfile) {
+	void makeUndirected(string infile, string outfile, bool isWeighted) {
 		ifstream in(infile);
 		string line;
 		if (in) // 有该文件  
 		{
 			int n1, n2, temp;
-			float w;
+			float w = 1;
 			n.clear();
 			linklist.clear();
 			nsize = 0;
@@ -1227,7 +1247,12 @@ public:
 			{
 				M++;
 				istringstream is(line);
-				is >> n1 >> n2 >> w;
+				if (isWeighted) {
+					is >> n1 >> n2 >> w;
+				}
+				else {
+					is >> n1 >> n2;
+				}
 				if ((n1 >= nsize) || (n2 >= nsize)) {
 					nsize = ((n1 > n2) ? n1 : n2) + 1;
 					n.resize(nsize);
@@ -1296,14 +1321,46 @@ public:
 		}
 	}*/
 
+	void dataProcess() {
+		nlist.clear();
+		int n1, n2;
+		float w;
+		ifstream in1("F:/data/lp_data/retweet1.txt");
+		ifstream in2("F:/data/lp_data/retweet2.txt");
+		ofstream out("F:/data/lp_data/retweet_U.txt");
+		string line;
+		if (in1)
+		{
+			int ni;
+			while (getline(in1, line))
+			{
+				istringstream is(line);
+				is >> ni;
+				nlist.push_back(ni);
+			}
+		}
+		if (in2) {
+			while (getline(in2, line))
+			{
+				istringstream is(line);
+				is >> n1 >> n2 >> w;
+				out << lower_bound(nlist.begin(), nlist.end(), n1) - nlist.begin() << " " << lower_bound(nlist.begin(), nlist.end(), n2) - nlist.begin() << " " << w << endl;
+			}
+		}
+		in1.close();
+		in2.close();
+		out.close();
+	}
+
 };
 
 int main(int argc, char **argv) {
 	Network g;
-	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/", "F:/data/lp_data/result/619_AUC.txt");
-	//g.makeUndirected("F:/data/lp_data/weighted/beach.txt", "F:/data/lp_data/weighted/beach_U.txt");
-	g.readdata("F:/data/lp_data/football.txt", false, false);
+	//g.dataProcess();
+	g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/twitter/", "F:/data/lp_data/result/703_AUC2.txt");
+	//g.makeUndirected("F:/data/lp_data/weighted/U/twitter/retweet.txt", "F:/data/lp_data/weighted/U/twitter/retweet_U.txt", true);
+	//g.readdata("F:/data/lp_data/football.txt", false, false);
 	//g.showInfo("F:/data/lp_data/weighted/U/USAir_U.txt", "F:/data/lp_data/result/USAir_info.txt");
-	cout << g.countAssortative() << endl;
+	//cout << g.countAssortative() << endl;
 	system("pause");
 }
