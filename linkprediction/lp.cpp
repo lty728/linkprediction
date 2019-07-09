@@ -76,7 +76,7 @@ public:
 		_findclose(lf);
 	}
 
-	void readdata(string filename, bool isWeighted, bool isDirected) {
+	void readdata(string filename, bool isWeighted) {
 		ifstream in(filename);
 		string line;
 		if (in) // 有该文件  
@@ -113,12 +113,10 @@ public:
 					n.resize(nsize);
 				}
 				n[n1].push_back(l);
-				if (!isDirected) {
-					temp = l.source;
-					l.source = l.dest;
-					l.dest = temp;
-					n[n2].push_back(l);
-				}
+				temp = l.source;
+				l.source = l.dest;
+				l.dest = temp;
+				n[n2].push_back(l);
 			}
 			if (n[0].size() == 0) {
 				begin = 1;
@@ -251,7 +249,7 @@ public:
 					visited[now] = true;
 				}
 			}
-			if (t > 200) {//限制搜索次数，加快速度
+			if (t > 5000) {//限制搜索次数，加快速度
 				return false;
 			}
 		}
@@ -1021,6 +1019,12 @@ public:
 		case 15:
 			return wwlp3(n1, n2, 1, alpha);
 			break;
+		case 16:
+			return HEI(n1, n2, alpha);
+			break;
+		case 17:
+			return HAI(n1, n2, alpha);
+			break;
 		}
 	}
 
@@ -1058,7 +1062,7 @@ public:
 	}
 
 
-	void tries(int times, int AUCtimes, int isAUC, float ratio, const char* path, string resultfile, bool isWeighted, bool isDirected) {
+	void tries(int times, int AUCtimes, int isAUC, float ratio, const char* path, string resultfile, bool isWeighted) {
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
@@ -1067,10 +1071,10 @@ public:
 		float result = 0;
 		clock_t start, end;
 		float ai;
-		vector<int> method = { 1,2,3,4,5 };
+		vector<int> method = { 4 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
-			readdata(fs + files[f], isWeighted, isDirected);
+			readdata(fs + files[f], isWeighted);
 			out << files[f] << " ";
 			cout << files[f] << endl;
 			for (int m = 0; m < method.size(); m++) {
@@ -1114,10 +1118,10 @@ public:
 		string fs = path;
 		float result = 0;
 		float ai;
-		vector<int> method = { 10 };
+		vector<int> method = { 17 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
-			readdata(fs + files[f], true, false);
+			readdata(fs + files[f], true);
 			out << files[f] << endl;
 			cout << files[f] << endl;
 			for (int m = 0; m < method.size(); m++) {//遍历每种算法
@@ -1161,7 +1165,7 @@ public:
 		float ai;
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
-			readdata(fs + files[f], true, false);
+			readdata(fs + files[f], true);
 			out << files[f] << endl;
 			cout << files[f] << endl;
 			b = 0;
@@ -1192,7 +1196,7 @@ public:
 
 	void showInfo(string infile, string outfile) {
 		int n11, n12, n21, n22;
-		readdata(infile, true, false);
+		readdata(infile, true);
 		init(0.1);
 		ofstream out(outfile);
 		for (int i = 0; i < test.size(); i++) {
@@ -1204,7 +1208,7 @@ public:
 		}
 	}
 
-	void isDirected(string filename) {
+	/*void isDirected(string filename) {
 		readdata(filename, true, false);
 		cout << filename << " ";
 		for (int i = 0; i < n.size(); i++) {
@@ -1228,7 +1232,7 @@ public:
 		for (int f = 0; f < files.size(); f++) {
 			isDirected(files[f]);
 		}
-	}
+	}*/
 
 	void makeUndirected(string infile, string outfile, bool isWeighted) {
 		ifstream in(infile);
@@ -1352,14 +1356,114 @@ public:
 		out.close();
 	}
 
+	void nullmodel_0k(string infile, string outfile, bool isWeighted, int times) {
+		readdata(infile, isWeighted);
+		times *= nsize;
+		int pos;
+		int n1, n2;
+		float w;
+		uniform_int_distribution<int> u1(0, linklist.size() - 1);
+		uniform_int_distribution<int> u2(0, nsize - 1);
+		while (times > 0) {
+			pos = u1(e);
+			n1 = linklist[pos].source;
+			n2 = linklist[pos].dest;
+			w = linklist[pos].weight;
+			if (connected2(n1, n2)) {
+				nErase(n1, n2);
+				do {
+					n1 = u2(e);
+					n2 = u2(e);
+				} while ((n1 != n2) && (!isNeighbor(n1, n2)));
+				nAdd(n1, n2, w);
+				linklist[pos].source = n1;
+				linklist[pos].dest = n2;
+				times--;
+			}		
+		}
+		ofstream out(outfile);
+		if (isWeighted) {
+			for (int i = 0; i < linklist.size(); i++) {
+				out << linklist[i].source << " " << linklist[i].dest << " " << linklist[i].weight << endl;
+			}
+		}
+		else {
+			for (int i = 0; i < linklist.size(); i++) {
+				out << linklist[i].source << " " << linklist[i].dest << endl;
+			}
+		}
+	}
+
+	bool connected2(int n1, int n2) {//用于验证删掉一条边后网络是否连通
+		visited.clear();
+		visited.resize(nsize, false);
+		visited[n1] = true;
+		queue<int> q;
+		int v;
+		int t = 0;
+		for (int i = 0; i < n[n1].size(); i++) {
+			if (n[n1][i].dest != n2) {
+				q.push(n[n1][i].dest);
+				visited[n[n1][i].dest] = true;
+			}
+		}
+		while (!q.empty()) {
+			t++;
+			v = q.front();
+			q.pop();
+			for (int i = 0; i < n[v].size(); i++) {
+				int now = n[v][i].dest;
+				if (!visited[now]) {
+					if (now == n2) {
+						return true;
+					}
+					q.push(now);
+					visited[now] = true;
+				}
+			}
+			if (t > 5000) {//限制搜索次数，加快速度
+				return false;
+			}
+		}
+		return false;
+	}
+
+	void nErase(int n1, int n2) {
+		for (int i = 0; i < n[n1].size(); i++) {
+			if (n[n1][i].dest == n2) {
+				n[n1].erase(n[n1].begin() + i);
+				break;
+			}
+		}
+		for (int i = 0; i < n[n2].size(); i++) {
+			if (n[n2][i].dest == n1) {
+				n[n2].erase(n[n2].begin() + i);
+				break;
+			}
+		}
+	}
+
+	void nAdd(int n1, int n2, float w) {
+		link l;
+		l.source = n1;
+		l.dest = n2;
+		l.weight = w;
+		n[n1].push_back(l);
+		l.source = n2;
+		l.dest = n1;
+		n[n2].push_back(l);
+	}
+
 };
 
 int main(int argc, char **argv) {
 	Network g;
+	g.tries(10, 1000, true, 0.1, "F:/data/lp_data/temp/", "F:/data/lp_data/result/709_AUC.txt", false);
+	//g.nullmodel_0k("F:/data/lp_data/football.txt", "F:/data/lp_data/football_0k.txt", false, 10);
 	//g.dataProcess();
-	g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/twitter/", "F:/data/lp_data/result/703_AUC2.txt");
+	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/twitter/", "F:/data/lp_data/result/705_AUC.txt");
 	//g.makeUndirected("F:/data/lp_data/weighted/U/twitter/retweet.txt", "F:/data/lp_data/weighted/U/twitter/retweet_U.txt", true);
-	//g.readdata("F:/data/lp_data/football.txt", false, false);
+	//g.readdata("F:/data/lp_data/football.txt", false);
 	//g.showInfo("F:/data/lp_data/weighted/U/USAir_U.txt", "F:/data/lp_data/result/USAir_info.txt");
 	//cout << g.countAssortative() << endl;
 	system("pause");
