@@ -14,8 +14,8 @@ using namespace std;
 typedef struct {
 	int source;
 	int dest;
-	float weight;
-	float score;
+	double weight;
+	double score;
 	bool isTest;
 }link;
 
@@ -34,8 +34,8 @@ private:
 	int testnum;//测试边数
 	int begin;//开始节点
 	int dmax;//最大的度
-	float wmin;//最小权重
-	float wmax;//最大权重
+	double wmin;//最小权重
+	double wmax;//最大权重
 	int totd;
 	vector<vector<link> > n;//邻接表
 	vector<int> nlist;
@@ -47,11 +47,11 @@ private:
 	vector<link> t;
 	vector<link> nolink;//不存在边集
 	vector<link> rank;
-	vector<vector<float> > pset;
+	vector<vector<double> > pset;
 	vector<int> d;//
 	vector<string> files;
-	vector<vector<float> > eij;
-	float AUC;
+	vector<vector<double> > eij;
+	double AUC;
 	queue<int> q; //搜索队列
 	vector<bool> visited; //访问标志
 	vector<int> level;//广度优先遍历层数
@@ -82,7 +82,7 @@ public:
 		if (in) // 有该文件  
 		{
 			int n1, n2, temp;
-			float w = 1;
+			double w = 1;
 			n.clear();
 			linklist.clear();
 			link l;
@@ -134,11 +134,11 @@ public:
 		}
 	}
 
-	float countAssortative() {
+	double countAssortative() {
 		int d1, d2, dmin;
-		float addai = 0, addei = 0;
+		double addai = 0, addei = 0;
 		eij.clear();
-		vector<float> ai(dmax + 1, 0);
+		vector<double> ai(dmax + 1, 0);
 		eij.resize(dmax + 1, ai);
 		for (int i = 0; i < linklist.size(); i++) {
 			d1 = n[linklist[i].source].size();
@@ -164,7 +164,7 @@ public:
 	}
 
 	void weightNormalize() {
-		float dw = wmax - wmin;
+		double dw = wmax - wmin;
 		for (int i = 0; i < n.size(); i++) {
 			for (int j = 0; j < n[i].size(); j++) {
 				n[i][j].weight = (n[i][j].weight - wmin) / dw;
@@ -172,7 +172,7 @@ public:
 		}
 	}
 
-	void init(float ratio) {
+	void init(double ratio) {
 		testnum = M * ratio;
 		train.clear();
 		train.assign(n.begin(), n.end());
@@ -192,7 +192,7 @@ public:
 		for (int i = 0; i < train.size(); i++) {
 			dmax = (dmax > train[i].size()) ? dmax : train[i].size();
 		}
-		vector<float> pi(dmax + 1, 0);
+		vector<double> pi(dmax + 1, 0);
 		pset.clear();
 		pset.resize(train.size(), pi);
 		for (int i = 0; i < train.size(); i++) {
@@ -206,12 +206,12 @@ public:
 			for (int k = 0; k <= j; k++) {
 				pset[i][k] /= totd;
 			}
-			sort(pset[i].begin(), pset[i].end(), greater<float>());
+			sort(pset[i].begin(), pset[i].end(), greater<double>());
 		}
 	}
 
-	float LRE(int n1, int n2) {
-		float l = 0;
+	double LRE(int n1, int n2) {
+		double l = 0;
 		int m = ((train[n1].size() < train[n2].size()) ? train[n1].size() : train[n2].size()) + 1;
 		int d = distance(n1, n2);
 		for (int i = 0; i < m; i++) {
@@ -256,10 +256,10 @@ public:
 		return false;
 	}
 
-	float get_cluster() {
-		float sum = 0;
+	double get_cluster() {
+		double sum = 0;
 		int ni;
-		float ki;
+		double ki;
 		for (int i = 0; i < n.size(); i++) {
 			ni = 0;
 			ki = n[i].size();
@@ -312,8 +312,8 @@ public:
 		getAllFile(path2);
 		string fs = path;
 		int n11, n12, n21, n22;
-		float cn1, cn2, d1, d2;
-		float p11, p12, p21, p22;
+		double cn1, cn2, d1, d2;
+		double p11, p12, p21, p22;
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f]);
 			init(0.1);
@@ -343,8 +343,8 @@ public:
 		int n1, n2;
 		int d;
 		int c;
-		float l1;
-		float l2;
+		double l1;
+		double l2;
 		for (int i = 0; i < test.size(); i++) {
 			n1 = test[i][0];
 			n2 = test[i][1];
@@ -356,7 +356,7 @@ public:
 		}
 	}
 
-	void allLinkInfo(float ratio, const char* path, string outpath) {
+	void allLinkInfo(double ratio, const char* path, string outpath) {
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
@@ -382,8 +382,8 @@ public:
 		return cn;
 	}
 
-	float PE(int n1, int n2) {
-		float pe = 0;
+	double PE(int n1, int n2, int l) {
+		double pe = 0;
 		vector<vector<int> > path2;
 		vector<vector<int> > path3;
 		int p2i = 0, p3i = 0;
@@ -396,31 +396,32 @@ public:
 				}
 			}
 		}
-		for (int i = 0; i < train[n1].size(); i++) {
-			for (int j = 0; j < train[n2].size(); j++) {
-				for (int k = 0; k < train[train[n1][i].dest].size(); k++) {
-					if (train[train[n1][i].dest][k].dest == train[n2][j].dest) {
-						path3.resize(p3i + 1);
-						path3[p3i].push_back(train[n1][i].dest);
-						path3[p3i].push_back(train[n2][j].dest);
-						p3i++;
-						break;
-					}
-				}
-			}
-		}
 		for (int i = 0; i < path2.size(); i++) {
 			pe += IL1(n1, path2[i][0]) + IL1(path2[i][0], n2);
 		}
-		for (int i = 0; i < path3.size(); i++) {
-			pe += 0.5*(IL1(n1, path3[i][0]) + IL1(path3[i][0], path3[i][1]) + IL1(path3[i][1], n2));
-		}
+		if (l == 2) {
+			for (int i = 0; i < train[n1].size(); i++) {
+				for (int j = 0; j < train[n2].size(); j++) {
+					for (int k = 0; k < train[train[n1][i].dest].size(); k++) {
+						if (train[train[n1][i].dest][k].dest == train[n2][j].dest) {
+							path3.resize(p3i + 1);
+							path3[p3i].push_back(train[n1][i].dest);
+							path3[p3i].push_back(train[n2][j].dest);
+							p3i++;
+							break;
+						}
+					}
+				}
+			}
+			for (int i = 0; i < path3.size(); i++) {
+				pe += 0.5*(IL1(n1, path3[i][0]) + IL1(path3[i][0], path3[i][1]) + IL1(path3[i][1], n2));
+			}
+		}						
 		return pe - IL1(n1, n2);
-
 	}
 
-	float AA(int n1, int n2) {
-		float aa = 0;
+	double AA(int n1, int n2) {
+		double aa = 0;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
 				if (train[n1][i].dest == train[n2][j].dest) {
@@ -432,12 +433,12 @@ public:
 		return aa;
 	}
 
-	float RA(int n1, int n2) {
-		float ra = 0;
+	double RA(int n1, int n2) {
+		double ra = 0;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
 				if (train[n1][i].dest == train[n2][j].dest) {
-					ra += 1 / (float)train[train[n1][i].dest].size();
+					ra += 1 / (double)train[train[n1][i].dest].size();
 					break;
 				}
 			}
@@ -450,8 +451,8 @@ public:
 		swap(empty, q);
 	}
 
-	float pn(int node, int maxlevel) {
-		float addk = 0;
+	double pn(int node, int maxlevel) {
+		double addk = 0;
 		int neighbor;//邻居
 		clear(q);
 		q.push(node);
@@ -477,12 +478,12 @@ public:
 			}
 		}
 		addk -= train[node].size();
-		return (float)train[node].size() / addk;
+		return (double)train[node].size() / addk;
 	}
 
-	float wpn(int node, int maxlevel) {
-		float addw = 0;
-		float nodew;
+	double wpn(int node, int maxlevel) {
+		double addw = 0;
+		double nodew;
 		int neighbor;
 		clear(q);
 		q.push(node);
@@ -510,9 +511,9 @@ public:
 		return allw(node) / addw;
 	}
 
-	float wwpn(int node, int maxlevel, float alpha) {
-		float addw = 0;
-		float nodew;
+	double wwpn(int node, int maxlevel, double alpha) {
+		double addw = 0;
+		double nodew;
 		int neighbor;
 		clear(q);
 		q.push(node);
@@ -540,16 +541,16 @@ public:
 		return wallw(node, alpha) / addw;
 	}
 
-	float wallw(int node, float alpha) {
-		float alw = 0;
+	double wallw(int node, double alpha) {
+		double alw = 0;
 		for (int i = 0; i < train[node].size(); i++) {
 			alw += pow(train[node][i].weight, alpha);
 		}
 		return alw;
 	}
 
-	float allw(int node) {
-		float alw = 0;
+	double allw(int node) {
+		double alw = 0;
 		for (int i = 0; i < train[node].size(); i++) {
 			alw += train[node][i].weight;
 		}
@@ -578,8 +579,6 @@ public:
 		level.clear();
 		level.resize(nsize, 0);
 		visited[n1] = true;
-		clock_t start, end;
-		start = clock();
 		while (!q.empty())
 		{
 			int v = q.front(); //取出队头的节点
@@ -601,97 +600,97 @@ public:
 		return 100;
 	}
 	
-	float newlp(int n1, int n2, int l) {
+	double newlp(int n1, int n2, int l) {
 		if((train[n1].size()==0)||(train[n2].size()==0)){
 			return 0;
 		}
-		float p1 = pn(n1, l);
-		float p2 = pn(n2, l);
+		double p1 = pn(n1, l);
+		double p2 = pn(n2, l);
 		int d = distance(n1, n2);
 		return (CN(n1, n2) + 1)*(-p1 * log(p1) - p2 * log(p2)) / (d - 1);
 	}
 
-	float wlp(int n1, int n2, int l) {
+	double wlp(int n1, int n2, int l) {
 		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
 			return 0;
 		}
-		float wp1 = wpn(n1, l);
-		float wp2 = wpn(n2, l);
+		double wp1 = wpn(n1, l);
+		double wp2 = wpn(n2, l);
 		int d = distance(n1, n2);
 		return (-wp1 * log(wp1) - wp2 * log(wp2)) / (d - 1);
 	}
 
-	float wwlp(int n1, int n2, int l, float alpha) {
+	double wwlp(int n1, int n2, int l, double alpha) {
 		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
 			return 0;
 		}
-		float wwp1 = wwpn(n1, l, alpha);
-		float wwp2 = wwpn(n2, l, alpha);
+		double wwp1 = wwpn(n1, l, alpha);
+		double wwp2 = wwpn(n2, l, alpha);
 		int d = distance(n1, n2);
 		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
 	}
 
-	float wwlp2(int n1, int n2, int l, float alpha) {
+	double wwlp2(int n1, int n2, int l, double alpha) {
 		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
 			return 0;
 		}
-		float wwp11 = wwpn(n1, l, alpha);
-		float wwp21 = wwpn(n2, l, alpha);
-		float wwp12 = pn(n1, l);
-		float wwp22 = pn(n2, l);
-		float wwp1 = wwp11 + wwp12;
-		float wwp2 = wwp21 + wwp22;
+		double wwp11 = wwpn(n1, l, alpha);
+		double wwp21 = wwpn(n2, l, alpha);
+		double wwp12 = pn(n1, l);
+		double wwp22 = pn(n2, l);
+		double wwp1 = wwp11 + wwp12;
+		double wwp2 = wwp21 + wwp22;
 		int d = distance(n1, n2);
 		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
 	}
 
-	float wwlp3(int n1, int n2, int l, float alpha) {
+	double wwlp3(int n1, int n2, int l, double alpha) {
 		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
 			return 0;
 		}
-		float wwp1 = wwpn(n1, l, alpha);
-		float wwp2 = wwpn(n2, l, alpha);
-		float add = wwp1 + wwp2;
+		double wwp1 = wwpn(n1, l, alpha);
+		double wwp2 = wwpn(n2, l, alpha);
+		double add = wwp1 + wwp2;
 		wwp1 = wwp1 / add;
 		wwp2 = wwp2 / add;
 		int d = distance(n1, n2);
 		return (-wwp1 * log(wwp1) - wwp2 * log(wwp2)) / (d - 1);
 	}
 
-	float hy(int n1, int n2, float a) {
-		return a * newlp(n1, n2, 3) + (1 - a)*PE(n1, n2);
+	double hy(int n1, int n2, double a) {
+		return a * newlp(n1, n2, 3) + (1 - a)*PE(n1, n2, 2);
 	}
 
-	float hy2(int n1, int n2) {
-		return newlp(n1, n2, 3) * PE(n1, n2);
+	double hy2(int n1, int n2) {
+		return newlp(n1, n2, 3) * PE(n1, n2, 2);
 	}
 
-	float newcn(int n1, int n2) {
+	double newcn(int n1, int n2) {
 		if ((train[n1].size() == 0) || (train[n2].size() == 0)) {
 			return 0;
 		}
-		float p1 = pn(n1, 1);
-		float p2 = pn(n2, 1);
+		double p1 = pn(n1, 1);
+		double p2 = pn(n2, 1);
 		int d = distance(n1, n2);
 		return ((-p1 * log(p1) - p2 * log(p2)) / (d - 1)) + CN(n1, n2);
 	}
 
-	float lp5(int n1, int n2) {
-		float l1 = le(n1);
-		float l2 = le(n2);
+	double lp5(int n1, int n2) {
+		double l1 = le(n1);
+		double l2 = le(n2);
 		int d = distance(n1, n2);
 		return (l1 + l2) / (d - 1);
 	}
 	
-	float le(int node) {
-		float pi;
-		float l = 0;
+	double le(int node) {
+		double pi;
+		double l = 0;
 		int totd = 0;
 		for (int i = 0; i < train[node].size(); i++) {
 			totd += train[train[node][i].dest].size();
 		}
 		for (int j = 0; j < train[node].size(); j++) {
-			pi = (float)train[train[node][j].dest].size() / totd;
+			pi = (double)train[train[node][j].dest].size() / totd;
 			l += pi * log2(pi);
 		}
 		if (l == 0) {
@@ -700,16 +699,16 @@ public:
 		return -l;
 	}
 
-	float sp(int n1, int n2) {
-		return (float)1 / distance(n1, n2);
+	double sp(int n1, int n2) {
+		return (double)1 / distance(n1, n2);
 	}
 
-	float LRW(int n1, int n2) {
+	double LRW(int n1, int n2) {
 
 	}
 
-	float WCN(int n1, int n2) {
-		float wcn = 0;
+	double WCN(int n1, int n2) {
+		double wcn = 0;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
 				if (train[n1][i].dest == train[n2][j].dest) {
@@ -721,10 +720,10 @@ public:
 		return wcn;
 	}
 
-	float WAA(int n1, int n2) {
-		float waa = 0;
-		float wcn;
-		float sz;
+	double WAA(int n1, int n2) {
+		double waa = 0;
+		double wcn;
+		double sz;
 		int z;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
@@ -743,10 +742,10 @@ public:
 		return waa;
 	}
 
-	float WRA(int n1, int n2) {
-		float wra = 0;
-		float wcn;
-		float sz;
+	double WRA(int n1, int n2) {
+		double wra = 0;
+		double wcn;
+		double sz;
 		int z;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
@@ -765,8 +764,8 @@ public:
 		return wra;
 	}
 
-	float WWCN(int n1, int n2, float alpha) {
-		float wwcn = 0;
+	double WWCN(int n1, int n2, double alpha) {
+		double wwcn = 0;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
 				if (train[n1][i].dest == train[n2][j].dest) {
@@ -778,10 +777,10 @@ public:
 		return wwcn;
 	}
 
-	float WWAA(int n1, int n2, float alpha) {
-		float wwaa = 0;
-		float wwcn;
-		float sz;
+	double WWAA(int n1, int n2, double alpha) {
+		double wwaa = 0;
+		double wwcn;
+		double sz;
 		int z;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
@@ -800,10 +799,10 @@ public:
 		return wwaa;
 	}
 
-	float WWRA(int n1, int n2, float alpha) {
-		float wwra = 0;
-		float wwcn;
-		float sz;
+	double WWRA(int n1, int n2, double alpha) {
+		double wwra = 0;
+		double wwcn;
+		double sz;
 		int z;
 		for (int i = 0; i < train[n1].size(); i++) {
 			for (int j = 0; j < train[n2].size(); j++) {
@@ -822,26 +821,31 @@ public:
 		return wwra;
 	}
 
-	float HEI(int n1, int n2, float alpha) {
-		return pow(abs(int(train[n1].size() - train[n2].size())), alpha);
+	double HEI(int n1, int n2, double alpha) {
+		if (train[n1].size() == train[n2].size()) {
+			return 0;
+		}
+		else {
+			return pow(abs(int(train[n1].size() - train[n2].size())), alpha);
+		}	
 	}
 
-	float HOI(int n1, int n2, float alpha) {
-		return float(1) / pow(abs(int(train[n1].size() - train[n2].size())), alpha);
+	double HOI(int n1, int n2, double alpha) {
+		return double(1) / pow(abs(int(train[n1].size() - train[n2].size())), alpha);
 	}
 
-	float HAI(int n1, int n2, float alpha) {
-		float dk = abs(int(train[n1].size() - train[n2].size()));
+	double HAI(int n1, int n2, double alpha) {
+		double dk = abs(int(train[n1].size() - train[n2].size()));
 		return alpha * dk + (1 - alpha)*dk;
 	}
 
-	float countAUC(int num, int method, float alpha) {//method:1.cn;2.pe
+	double countAUC(int num, int method, double alpha) {//method:1.cn;2.pe
 		int n11, n12;//测试边节点
 		int n21, n22;//不存在边节点
 		uniform_int_distribution<int> v1(0, test.size() - 1);
 		uniform_int_distribution<int> v2(begin, nsize - 1);
-		float s1, s2;
-		float t = 0;//测试边相似度比不存在边大
+		double s1, s2;
+		double t = 0;//测试边相似度比不存在边大
 		for (int i = 0; i < num; i++) {
 			//随机选择测试边和不存在边各一条，分别计算相似度比较
 			int testn = v1(e);
@@ -853,7 +857,7 @@ public:
 				n22 = v2(e);
 			} while ((n21 == n22) || isNeighbor(n21, n22) || (train[n21].size() == 0) || (train[n22].size() == 0));
 			s1 = sim(n11, n12, method, alpha);//测试边
-			s2 = sim(n21, n22, method, alpha);//不存在边			
+			s2 = sim(n21, n22, method, alpha);//不存在边	
  			if (s1 > s2) {
 				t++;
 			}
@@ -865,15 +869,15 @@ public:
 		return AUC;
 	}
 
-	float AUC2(int num, int method, float alpha) {
+	double AUC2(int num, int method, double alpha) {
 		int n11, n12;//测试边节点
 		int n21, n22;//不存在边节点
 		int tn, nn;
 		setnolink(test.size());
 		uniform_int_distribution<int> v1(0, test.size() - 1);
 		uniform_int_distribution<int> v2(0, nolink.size() - 1);
-		float s1, s2;
-		float t = 0;//测试边相似度比不存在边大
+		double s1, s2;
+		double t = 0;//测试边相似度比不存在边大
 		for (int i = 0; i < num; i++) {
 			//随机选择测试边和不存在边各一条，分别计算相似度比较
 			tn = v1(e);
@@ -948,7 +952,7 @@ public:
 		}
 	}
 
-	float Precision(int method, int L, float alpha) {
+	double Precision(int method, int L, double alpha) {
 		int lm = 0;
 		//L = L < testnum ? L : testnum;
 		setalllink();
@@ -965,10 +969,10 @@ public:
 				lm++;
 			}
 		}
-		return (float)lm / L;
+		return (double)lm / L;
 	}
 
-	float sim(int n1, int n2, int method, float alpha) {
+	double sim(int n1, int n2, int method, double alpha) {
 		switch (method)
 		{
 		case 0:
@@ -984,10 +988,10 @@ public:
 			return RA(n1, n2);
 			break;
 		case 4:
-			return PE(n1, n2);
+			return PE(n1, n2, 1);
 			break;
 		case 5:
-			return newlp(n1, n2, 3);
+			return newlp(n1, n2, 1);
 			break;
 		case 6:
 			return hy(n1, n2, 0.9);
@@ -1051,27 +1055,27 @@ public:
 		return false;
 	}
 
-	float IL1(int na, int nb) {
+	double IL1(int na, int nb) {
 		int ka = train[na].size();
 		int kb = train[nb].size();
-		float c = 1;
+		double c = 1;
 		for (int i = 0; i <= kb - 1; i++) {
-			c *= (float)(M - ka - i) / (M - i);
+			c *= (double)(M - ka - i) / (M - i);
 		}
 		return -log2(1 - c);
 	}
 
 
-	void tries(int times, int AUCtimes, int isAUC, float ratio, const char* path, string resultfile, bool isWeighted) {
+	void tries(int times, int AUCtimes, int isAUC, double ratio, const char* path, string resultfile, bool isWeighted) {
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
 		getAllFile(path2);
 		string fs = path;
-		float result = 0;
+		double result = 0;
 		clock_t start, end;
-		float ai;
-		vector<int> method = { 4 };
+		double ai;
+		vector<int> method = { 1,4,5 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {
 			readdata(fs + files[f], isWeighted);
@@ -1090,7 +1094,7 @@ public:
 					switch (isAUC)
 					{
 					case 1:
-						ai = AUC2(AUCtimes, method[m], 0);
+						ai =countAUC(AUCtimes, method[m], 0);
 						break;
 					case 0:
 						ai = Precision(method[m], 100, 0);
@@ -1109,16 +1113,16 @@ public:
 		out.close();
 	}
 
-	void triesalpha(int times, int isAUC, float ratio, const char* path, string resultfile) {
-		float a;
+	void triesalpha(int times, int isAUC, double ratio, const char* path, string resultfile) {
+		double a;
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
 		getAllFile(path2);
 		string fs = path;
-		float result = 0;
-		float ai;
-		vector<int> method = { 17 };
+		double result = 0;
+		double ai;
+		vector<int> method = { 16 };
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
 			readdata(fs + files[f], true);
@@ -1134,17 +1138,19 @@ public:
 						switch (isAUC)
 						{
 						case 1:
-							ai = countAUC(1000, method[m], a);
+							ai = countAUC(10000, method[m], a);
+							out << ai << " ";
 							break;
 						case 0:
 							ai = Precision(method[m], 100, a);
 						}
 						result += ai;
 					}
+					out << endl;
 					cout << a << endl;
 					result = result / times;
 					cout << result << endl;
-					out << result << " ";
+					//out << result << endl;
 					a += 0.1;
 				}
 				out << endl;
@@ -1154,15 +1160,15 @@ public:
 		out.close();
 	}
 
-	void triesbeta(int times, int isAUC, float ratio, const char* path, string resultfile) {
-		float b;
+	void triesbeta(int times, int isAUC, double ratio, const char* path, string resultfile) {
+		double b;
 		char path2[30];
 		strcpy(path2, path);
 		strcat(path2, "*.txt");
 		getAllFile(path2);
 		string fs = path;
-		float result = 0;
-		float ai;
+		double result = 0;
+		double ai;
 		ofstream out(resultfile);
 		for (int f = 0; f < files.size(); f++) {//遍历每个网络
 			readdata(fs + files[f], true);
@@ -1196,7 +1202,7 @@ public:
 
 	void showInfo(string infile, string outfile) {
 		int n11, n12, n21, n22;
-		readdata(infile, true);
+		readdata(infile, false);
 		init(0.1);
 		ofstream out(outfile);
 		for (int i = 0; i < test.size(); i++) {
@@ -1204,7 +1210,7 @@ public:
 			n12 = test[i].dest;
 			n21 = nolink[i].source;
 			n22 = nolink[i].dest;
-			out << n11 << " " << n12 << " " << n21 << " " << n22 << " " << wpn(n11, 1) << " " << wpn(n12, 1) << " " << wpn(n21, 1) << " " << wpn(n22, 1) << " " << WCN(n11, n12) << " " << WCN(n21, n22) << endl;
+			out << n11 << " " << n12 << " " << n21 << " " << n22 << " " << pn(n11, 1) << " " << pn(n12, 1) << " " << distance(n11, n12) << " " << pn(n21, 1) << " " << pn(n22, 1) << " " << distance(n21, n22) << " " << CN(n11, n12) << " " << CN(n21, n22) << endl;
 		}
 	}
 
@@ -1240,7 +1246,7 @@ public:
 		if (in) // 有该文件  
 		{
 			int n1, n2, temp;
-			float w = 1;
+			double w = 1;
 			n.clear();
 			linklist.clear();
 			nsize = 0;
@@ -1309,7 +1315,7 @@ public:
 	}
 
 	double countH() {
-		float kave = 0, k2ave = 0;
+		double kave = 0, k2ave = 0;
 		for (int i = 0; i < n.size(); i++) {
 			kave += n[i].size();
 			k2ave += pow(n[i].size(), 2);
@@ -1328,7 +1334,7 @@ public:
 	void dataProcess() {
 		nlist.clear();
 		int n1, n2;
-		float w;
+		double w = 1;
 		ifstream in1("F:/data/lp_data/retweet1.txt");
 		ifstream in2("F:/data/lp_data/retweet2.txt");
 		ofstream out("F:/data/lp_data/retweet_U.txt");
@@ -1361,7 +1367,7 @@ public:
 		times *= nsize;
 		int pos;
 		int n1, n2;
-		float w;
+		double w;
 		uniform_int_distribution<int> u1(0, linklist.size() - 1);
 		uniform_int_distribution<int> u2(0, nsize - 1);
 		while (times > 0) {
@@ -1374,7 +1380,7 @@ public:
 				do {
 					n1 = u2(e);
 					n2 = u2(e);
-				} while ((n1 != n2) && (!isNeighbor(n1, n2)));
+				} while ((n1 == n2) || (isNeighbor(n1, n2)));
 				nAdd(n1, n2, w);
 				linklist[pos].source = n1;
 				linklist[pos].dest = n2;
@@ -1443,7 +1449,7 @@ public:
 		}
 	}
 
-	void nAdd(int n1, int n2, float w) {
+	void nAdd(int n1, int n2, double w) {
 		link l;
 		l.source = n1;
 		l.dest = n2;
@@ -1454,17 +1460,57 @@ public:
 		n[n2].push_back(l);
 	}
 
+	void getPart(int num, string outfile) {
+		ofstream out(outfile);
+		nlist.clear();
+		clear(q);
+		int n1, n2;
+		uniform_int_distribution<int> u(0, nsize - 1);
+		do {
+			n1 = u(e);
+		} while (n[n1].size() <= 0);
+		q.push(n1);
+		visited.clear();
+		visited.resize(nsize, false);
+		visited[n1] = true;
+		while (num > 0)
+		{
+			int v = q.front(); //取出队头的节点
+			q.pop();
+			nlist.push_back(v);
+			for (int i = 0; i < n[v].size(); i++) {
+				int now = n[v][i].dest;
+				if (!visited[now]) {
+					q.push(now);
+					visited[now] = true;
+				}
+			}
+			num--;
+		}
+		sort(nlist.begin(), nlist.end());
+		for (int i = 0; i < linklist.size(); i++) {
+			n1 = linklist[i].source;
+			n2 = linklist[i].dest;
+			if (binary_search(nlist.begin(), nlist.end(), n1) && binary_search(nlist.begin(), nlist.end(), n2)) {
+				out << n1 << " " << n2 << endl;
+			}
+		}
+		out.close();
+	}
+
 };
 
 int main(int argc, char **argv) {
 	Network g;
-	g.tries(10, 1000, true, 0.1, "F:/data/lp_data/temp/", "F:/data/lp_data/result/709_AUC.txt", false);
+	//g.readdata("F:/data/lp_data/CGScience.txt", false);
+	//g.getPart(500, "F:/data/lp_data/CGScience_part1.txt");
+	//g.tries(100, 10000, true, 0.1, "F:/data/temp/", "F:/data/lp_data/result/712_AUC.txt", false);
 	//g.nullmodel_0k("F:/data/lp_data/football.txt", "F:/data/lp_data/football_0k.txt", false, 10);
 	//g.dataProcess();
-	//g.triesalpha(10, 1, 0.1, "F:/data/lp_data/weighted/U/twitter/", "F:/data/lp_data/result/705_AUC.txt");
+	//g.triesalpha(100, 1, 0.1, "F:/data/temp/", "F:/data/lp_data/result/712_AUC2.txt");
 	//g.makeUndirected("F:/data/lp_data/weighted/U/twitter/retweet.txt", "F:/data/lp_data/weighted/U/twitter/retweet_U.txt", true);
 	//g.readdata("F:/data/lp_data/football.txt", false);
-	//g.showInfo("F:/data/lp_data/weighted/U/USAir_U.txt", "F:/data/lp_data/result/USAir_info.txt");
+	g.showInfo("F:/data/lp_data/CGScience.txt", "F:/data/lp_data/CGScience_info.txt");
 	//cout << g.countAssortative() << endl;
 	system("pause");
 }
