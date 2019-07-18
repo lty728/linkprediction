@@ -82,15 +82,13 @@ public:
 		if (in) // 有该文件  
 		{
 			int n1, n2, temp;
-			double w = 1;
+			double w = 0;
 			n.clear();
 			linklist.clear();
 			link l;
 			nsize = 0;
 			M = 0;
 			begin = 0;
-			wmin = 100;
-			wmax = 0;
 			dmax = 0;
 			while (getline(in, line)) // line中不包括每行的换行符  
 			{
@@ -98,8 +96,6 @@ public:
 				istringstream is(line);
 				if (isWeighted) {
 					is >> n1 >> n2 >> w;
-					wmin = w < wmin ? w : wmin;
-					wmax = w > wmax ? w : wmax;
 				}
 				else {
 					is >> n1 >> n2;
@@ -163,15 +159,6 @@ public:
 		return (addei - addai) / (1 - addai);
 	}
 
-	void weightNormalize() {
-		double dw = wmax - wmin;
-		for (int i = 0; i < n.size(); i++) {
-			for (int j = 0; j < n[i].size(); j++) {
-				n[i][j].weight = (n[i][j].weight - wmin) / dw;
-			}
-		}
-	}
-
 	void init(double ratio) {
 		testnum = M * ratio;
 		train.clear();
@@ -180,7 +167,7 @@ public:
 		test.resize(testnum);
 		templist.clear();
 		templist.assign(linklist.begin(), linklist.end());
-		dividedata();
+		dividedata(true);
 		setnolink(testnum);
 	}
 
@@ -277,7 +264,7 @@ public:
 		return sum / n.size();
 	}
 
-	void dividedata() {
+	void dividedata(bool isConnected) {
 		int d;
 		int n1, n2;
 		link l;
@@ -287,10 +274,28 @@ public:
 			int pos = u1(e);
 			l.source = n1 = templist[pos].source;
 			l.dest = n2 = templist[pos].dest;
-			if ((train[n1].size() > 1)&&((train[n2].size() > 1))&&(connected(n1, n2))) {
+			if (isConnected) {
+				if ((train[n1].size() > 1) && ((train[n2].size() > 1)) && (connected(n1, n2))) {
+					templist.erase(templist.begin() + pos);
+					test[i] = l;
+					for (int j = 0; j < train[n1].size(); j++) {
+						if (train[n1][j].dest == n2) {
+							train[n1].erase(train[n1].begin() + j);
+						}
+					}
+					for (int k = 0; k < train[n2].size(); k++) {
+						if (train[n2][k].dest == n1) {
+							train[n2].erase(train[n2].begin() + k);
+						}
+					}
+					i++;
+				}
+			}
+			else
+			{
 				templist.erase(templist.begin() + pos);
 				test[i] = l;
-				for (int j = 0; j < train[n1].size();j++) {
+				for (int j = 0; j < train[n1].size(); j++) {
 					if (train[n1][j].dest == n2) {
 						train[n1].erase(train[n1].begin() + j);
 					}
@@ -301,7 +306,7 @@ public:
 					}
 				}
 				i++;
-			}
+			}		
 		}
 	}
 
@@ -383,6 +388,9 @@ public:
 	}
 
 	double PE(int n1, int n2, int l) {
+		if (train[n1].size()*train[n2].size() == 0) {
+			return 0;
+		}
 		double pe = 0;
 		vector<vector<int> > path2;
 		vector<vector<int> > path3;
@@ -452,6 +460,9 @@ public:
 	}
 
 	double pn(int node, int maxlevel) {
+		if (train[node].size() == 0) {
+			return 0;
+		}
 		double addk = 0;
 		int neighbor;//邻居
 		clear(q);
@@ -1300,7 +1311,7 @@ public:
 			for (int i = 0; i < n.size(); i++) {
 				for (int j = 0; j < n[i].size(); j++) {
 					if (n[i][j].dest > i) {
-						out << i << " " << n[i][j].dest << " " << n[i][j].weight << endl;
+						out << i << " " << n[i][j].dest << endl;
 					}
 				}
 			}
@@ -1498,19 +1509,98 @@ public:
 		out.close();
 	}
 
+	void countTest1(string infile,string outfile) {
+		readdata(infile,false);
+		ofstream out(outfile);
+		for (int i = 0; i < 100; i++) {
+			init(0.1);
+			for (int j = 0; j < test.size(); j++) {
+				out << test[j].source << " " << test[j].dest << endl;
+			}
+		}
+		out.close();
+	}
+
+	void countTest2(string infile, string outfile) {
+		fstream in(infile);
+		ofstream out(outfile);
+		string line;
+		if (in) // 有该文件  
+		{
+			int n1 = 0, n2 = 0;
+			int temp1 = 0, temp2 = 0;
+			int count = 0;
+			while (getline(in, line)) // line中不包括每行的换行符  
+			{
+				istringstream is(line);
+				is >> n1 >> n2;
+				if ((temp1 != n1) || (temp2 != n2)) {
+					out << temp1 << " " << temp2 << " " << count << endl;
+					count = 0;
+					temp1 = n1;
+					temp2 = n2;
+					continue;
+				}
+				count++;
+			}
+			out << temp1 << " " << temp2 << " " << count << endl;
+		}
+		in.close();
+		out.close();
+	}
+
+	void getWCC(string infile, string outfile) {
+		readdata(infile, false);
+		ofstream out(outfile);
+		nlist.clear();
+		clear(q);
+		int n1, n2;
+		uniform_int_distribution<int> u(0, nsize - 1);
+		do {
+			n1 = u(e);
+		} while (n[n1].size() <= 0);
+		q.push(n1);
+		visited.clear();
+		visited.resize(nsize, false);
+		visited[n1] = true;
+		while (!q.empty())
+		{
+			int v = q.front(); //取出队头的节点
+			q.pop();
+			nlist.push_back(v);
+			for (int i = 0; i < n[v].size(); i++) {
+				int now = n[v][i].dest;
+				if (!visited[now]) {
+					q.push(now);
+					visited[now] = true;
+				}
+			}
+		}
+		sort(nlist.begin(), nlist.end());
+		for (int i = 0; i < linklist.size(); i++) {
+			n1 = linklist[i].source;
+			n2 = linklist[i].dest;
+			if (binary_search(nlist.begin(), nlist.end(), n1) && binary_search(nlist.begin(), nlist.end(), n2)) {
+				out << n1 << " " << n2 << endl;
+			}
+		}
+		out.close();
+	}
+
 };
 
 int main(int argc, char **argv) {
 	Network g;
-	//g.readdata("F:/data/lp_data/CGScience.txt", false);
-	//g.getPart(500, "F:/data/lp_data/CGScience_part1.txt");
-	//g.tries(100, 10000, true, 0.1, "F:/data/temp/", "F:/data/lp_data/result/712_AUC.txt", false);
+	//g.readdata("F:/data/lp_data/roadNet-PA_U.txt", false);
+	//g.getPart(500, "F:/data/lp_data/roadNet-PA_part1.txt");
+	//g.tries(10, 10000, true, 0.1, "F:/data/temp/", "F:/data/lp_data/result/716_AUC2.txt", false);
 	//g.nullmodel_0k("F:/data/lp_data/football.txt", "F:/data/lp_data/football_0k.txt", false, 10);
 	//g.dataProcess();
 	//g.triesalpha(100, 1, 0.1, "F:/data/temp/", "F:/data/lp_data/result/712_AUC2.txt");
-	//g.makeUndirected("F:/data/lp_data/weighted/U/twitter/retweet.txt", "F:/data/lp_data/weighted/U/twitter/retweet_U.txt", true);
+	//g.makeUndirected("F:/data/lp_data/roadNet-PA.txt", "F:/data/lp_data/roadNet-PA_U.txt", false);
 	//g.readdata("F:/data/lp_data/football.txt", false);
-	g.showInfo("F:/data/lp_data/CGScience.txt", "F:/data/lp_data/CGScience_info.txt");
-	//cout << g.countAssortative() << endl;
+	//g.showInfo("F:/data/lp_data/retweet.txt", "F:/data/lp_data/retweet_info.txt");
+	//g.countTest("F:/data/lp_data/Power.txt", "F:/data/lp_data/Power_test.txt");
+	g.countTest2("F:/data/lp_data/Power_test.txt", "F:/data/lp_data/Power_test2.txt");
 	system("pause");
 }
